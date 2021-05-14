@@ -49,7 +49,6 @@ Add 34
 */
 
 #include <stdio.h>
-#include <math.h>
 
 int main() {
   unsigned long long card_number;
