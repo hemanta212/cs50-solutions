@@ -51,8 +51,3 @@ int main(int argc, char *argv[]) {
   printf("ciphertext: %s\n", cipher_text);
   return 0;
 }
-
-/*
-C how to check if decimal
-
- */

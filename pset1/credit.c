@@ -52,7 +52,6 @@ Add 34
 
 int main() {
   unsigned long long card_number;
-
   printf("Card Number: ");
   scanf("%llu", &card_number);
 
@@ -61,13 +60,18 @@ int main() {
   int first_two_digits;
   int number_length = 0;
 
+  // Keep dividing and moduluing CC no : 123456789 to 0 extracting all digits
   while (card_number > 0) {
+    // The last digit (Look thoery 1 at top of file)
     int digit = card_number % 10;
 
+    // We are taking digits out from last so keep adding up even places incl. last
     if (number_length % 2 == 0)
       sum_of_unprocessed_digits += digit;
+    // For other calculate product (*2) and construct another number 
     else {
       int product = digit * 2;
+      // Look theory 2 last section at top of this file
       if(product >= 10)
         product_number = product_number * 100;
       else
@@ -75,15 +79,18 @@ int main() {
       product_number += product;
     }
 
+    // Simple technique to capture last two digits
     if (card_number >= 10 && card_number < 100)
       first_two_digits = card_number;
 
+    // Look thoery 1 at top file
     unsigned long long divider = 10; 
     card_number -= digit;
     card_number = card_number / divider;
     number_length++;
   }
 
+  // Break down the product number we have constructed using theory 1 again.
   int sum_of_product_digits = 0;
   for (int i = 0; product_number > 0; i++) {
     int digit = product_number % 10;
