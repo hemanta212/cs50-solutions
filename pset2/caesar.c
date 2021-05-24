@@ -24,15 +24,15 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  char plain_text[100];
-  char cipher_text[100];
+  char plain_text[100], cipher_text[100];
+  int i;
 
   printf("plaintext: ");
   // Rads whole line and assignms only first 100 chars to plain text & discard
   // other
   scanf("%100[^\n]%*[^\n]", plain_text);
 
-  for (int i = 0; plain_text[i] != '\0'; i++) {
+  for (i = 0; plain_text[i] != '\0'; i++) {
     const int UPPER_MIN=65, UPPER_MAX=90, LOWER_MIN=97, LOWER_MAX=122;
     int is_lower_alpha = plain_text[i] >= LOWER_MIN && plain_text[i] <= LOWER_MAX;
     int is_upper_alpha = plain_text[i] >= UPPER_MIN && plain_text[i] <= UPPER_MAX;
@@ -47,6 +47,7 @@ int main(int argc, char *argv[]) {
       cipher_text[i] = plain_text[i];
     }
   }
+  cipher_text[i] = '\0';
 
   printf("ciphertext: %s\n", cipher_text);
   return 0;
