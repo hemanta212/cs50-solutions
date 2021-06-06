@@ -1,0 +1,585 @@
+#+Title: CS50 PSET 4
+#+OPTIONS: toc: nil
+
+This is my thought process and some sort of documentation for the problem set 4 in harvard cs50 course.
+
+- Course site: https://cs50.harvard.edu/x/2021
+- Week 4: https://cs50.harvard.edu/x/2021/weeks/4
+- Pset 4: https://cs50.harvard.edu/x/2021/psets/4
+
+* Table of contents
+- [[#Filter (less and more)][Filter(less and more]]
+- [[#Recover][Recover]]
+
+* Filter (less and more)
+:Properties:
+:header-args: :tangle ~/dev/cs50_solutions/pset4/filter_more/helpers.c
+:CUSTOM_ID: Filter (less and more)
+:END:
+
+This problem deals with transforming (applying filters) to bmp files. Given a bmp file, the program applies filters like grayscale, blur, reflection, sepia and edge dectection.
+
+NOTE: The bmp spec is customized/simplified for easiness of learners and headers spec is based on Microsoft’s BMP format, 4.0, which debuted with Windows 95.
+
+** Build and Usage
+#+begin_src sh :tangle no
+  $ make filter
+  $ ./filter -g images/courtyard.bmp
+  :: Note ./filter -b / -r / -e / -s / -g (for blur, reflection, edge, sepia and grayscale resp)
+
+#+end_src
+** Headers
+Simple inclusion of necessary C heaaders.
+
+The two defines can definitely be improved. These are only related to edge neighbour function and needed for function signature prototype to work since neighbours[][] wont work.
+
+Also I went little to overboard with the number of arguments for neighbours utility  functions could make a struct but that seems overkill too.
+#+begin_src c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <math.h>
+
+  #include "helpers.h"
+
+  #define NEIGHBOUR_COL 3
+  #define NEIGHBOUR_ROW 3
+
+  int round_and_cap(double number);
+  int get_neighbours(int height, int width, int MAX_H, int MAX_W,
+                     RGBTRIPLE neighbours[], RGBTRIPLE image[MAX_H][MAX_W]);
+  void get_edge_neighbours(int height, int width, int MAX_H, int MAX_W,
+                           RGBTRIPLE neighbours[NEIGHBOUR_ROW][NEIGHBOUR_COL],
+                           RGBTRIPLE image[MAX_H][MAX_W]);
+#+end_src
+
+** Grayscale
+Nested for loop since the image is 2d array.
+
+Single pixel containing red green and blue values is modified. The each color value is given the same avg of the three value.
+- RGB all 0 --> black
+- RGB all 255(max) --> white
+- RGB all equal(~255/3) --> grey
+#+BEGIN_SRC c
+  // Convert image to grayscale
+  void grayscale(int height, int width, RGBTRIPLE image[height][width]) {
+    for (int h = 0; h < height; h++) {
+      for (int w = 0; w < width; w++) {
+        RGBTRIPLE pixel = image[h][w];
+        BYTE avg =
+            round((pixel.rgbtBlue + pixel.rgbtGreen + pixel.rgbtRed) / 3.0);
+        pixel.rgbtBlue = avg;
+        pixel.rgbtGreen = avg;
+        pixel.rgbtRed = avg;
+        image[h][w] = pixel;
+      }
+    }
+    return;
+  }
+
+#+END_SRC
+
+** Reflection
+As in co-ordinate axes, for reflecting any co-ordinate eg (1,2) along the y-axis, you just invert the y co-ordinate sign i.e (1, -2).
+
+Since we are dealing with limited square grid pixels here, the reflected y axis counterpart is calculated by subtracting with the width of grid.
+
+|---+---+---+---|
+| 1 | 2 | 3 | 4 | // Reflection counterparts: [1 --> 4] & [4-->1] [2-->3 & [3-->2]
+| x | x | x | x | // Formula width-index : 3 - (index of 2 -> 1) --> index 2 --> 3
+| x | x | x | x | // we just scan half the width since if we know 1 -> 4 then 4 -> 1
+| x | x | x | x | // Thus essentially we just swap pixels w. help of temp variable
+
+1 is at index 0 and width is 4 so we convert width to accomodate array starting at 0 by subtracting by 1
+Then the counterpart can be calculated by subtracting 3 with index of 1 i.e 0 so this case 1's reflected counterpart is 4
+
+#+begin_src c
+
+  // Reflect image horizontally
+  void reflect(int height, int width, RGBTRIPLE image[height][width]) {
+    for (int h = 0; h < height; h++) {
+      for (int w = 0; w < (int)width / 2; w++) {
+        int reflected_index = (width - 1) - w;
+        RGBTRIPLE counterPartPixel = image[h][reflected_index];
+        image[h][reflected_index] = image[h][w];
+        image[h][w] = counterPartPixel;
+      }
+    }
+    return;
+  }
+#+end_src
+
+** Sepia
+We loop through each pixel in the square grid of image and then set each pixel's color values based on all three of the values using various sepia algorithms. 
+
+We also have to do some cleaning of the resulting values to make ensure their range between 0 and 255 inclusive and round to nearest integer this work is implemented to round_and_cap function.
+#+begin_src c :tangle no
+  void sepia(int height, int width, RGBTRIPLE image[height][width]) {
+    for (int h = 0; h < height; h++) {
+      for (int w = 0; w < width; w++) {
+        RGBTRIPLE pixel = image[h][w];
+        double sepiaRed =
+            0.393 * pixel.rgbtRed + 0.769 * pixel.rgbtGreen + 0.189 * pixel.rgbtBlue;
+        double sepiaGreen =
+            0.349 * pixel.rgbtRed + 0.686 * pixel.rgbtGreen + 0.168 * pixel.rgbtBlue;
+        double sepiaBlue =
+            0.272 * pixel.rgbtRed + 0.534 * pixel.rgbtGreen + 0.131 * pixel.rgbtBlue;
+
+        pixel.rgbtBlue = round_and_cap(sepiaBlue);
+        pixel.rgbtGreen = round_and_cap(sepiaGreen);
+        pixel.rgbtRed = round_and_cap(sepiaRed);
+        image[h][w] = pixel;
+      }
+    }
+
+    return;
+}
+#+end_src
+** Blurring
+Blurring is done by finding neighbours of a pixel one unit in each direction including diagnols and incl. itself.
+
+                |---+---+---|
+                | 1 | 2 | 3 |  // neighbours 1 --> [ 1, 2, 4, 5]
+                | 4 | 5 | 6 |  // 2 --> [1, 2, 3, 4, 5, 6]
+                | 7 | 8 | 9 |  //  3 --> [2, 3, 5, 6]
+
+Once we get the neighbours we find the avg value of each color in RGB and which will be the final RGB value for the given pixel
+
+#+begin_src c
+  // Blur image
+  void blur(int height, int width, RGBTRIPLE image[height][width]) {
+    const int MAX_NEIGHBOURS = 9;
+    RGBTRIPLE backup_img[height][width];
+    for (int h = 0; h < height; h++) {
+      for (int w = 0; w < width; w++) {
+        backup_img[h][w] = image[h][w];
+      }
+    }
+
+    for (int h = 0; h < height; h++) {
+      for (int w = 0; w < width; w++) {
+        RGBTRIPLE neighbours[MAX_NEIGHBOURS];
+        int neighbours_count =
+            get_neighbours(h, w, height, width, neighbours, backup_img);
+
+        RGBTRIPLE curr_pixel = image[h][w];
+        int total_red = 0, total_blue = 0, total_green = 0;
+        for (int n = 0; n < neighbours_count; n++) {
+          RGBTRIPLE pixel = neighbours[n];
+          total_red += pixel.rgbtRed;
+          total_blue += pixel.rgbtBlue;
+          total_green += pixel.rgbtGreen;
+        }
+
+        curr_pixel.rgbtRed = round(total_red / (float)neighbours_count);
+        curr_pixel.rgbtBlue = round(total_blue / (float)neighbours_count);
+        curr_pixel.rgbtGreen = round(total_green / (float)neighbours_count);
+        image[h][w] = curr_pixel;
+      }
+    }
+    return;
+  }
+#+end_src
+
+** Edge Detection
+
+The concept is similar to the blurring in that the final RGB value of pixel is determined with the help of its neighbours but slightly differs in the process of finding neighbours and at last computing the value itself.
+
+For finding neighbours, each pixel will always have 9 neighbours including itself. Obviously the pixle at edges and corners cant have 9 neighbours so we find the possible neighbours and for others we just add a black pixel. Try visualizing a one pixel width black boarder surrounding the square grid of pixels
+
+            |---+---+---+---+---|
+            | b | b | b | b | b |
+            | b | 1 | 2 | 3 | b | // neighbours of 1 --> [ b, b, b, b, 1, 2, b, 4, 5] 
+            | b | 4 | 5 | 6 | b |                                                  
+            | b | 7 | 8 | 9 | b |                                                  
+            | b | b | b | b | b |                                                  
+
+here b --> black pixel a placeholder RGBTRIPLE struct will all RGB field values -> 0
+
+Then for computing the resulting RGB values we have to get Gx and Gy
+
+EG. for 1   
+|---+---+---|
+| b | b | b |
+| b | 1 | 2 |
+| b | 7 | 8 |
+
+Gx
+|----+---+---|
+| -1 | 0 | 1 |
+| -2 | 0 | 2 |
+| -1 | 0 | 1 |
+
+Gy
+|----+----+----|
+| -1 | -2 | -1 |
+|  0 |  0 |  0 |
+|  1 |  2 |  1 |
+
+For simplicity and uniformity the neigbours of each pixel are represented as 2d arrays with 3 rows and 3 columns. The the RGB values of each neigbhour is then multiplied with respective cell in Gx matrix/kernel then you have the avg red, blue and green values of Gx for all 9 neighbours.
+
+What you are doing is taking 9 neigbours of a given pixel altering signs of values of column in its left and right and adding them up to see if the color values have high difference or not if high difference/contrast then probably its due to change in border/edge of object.
+
+Similar process happends with Gy but in vertical direction.
+
+Gx and Gy avg values for each RGB color is calculated using the root of sum of squares formula i.e \sqrt{Gx^2 + Gy^2}
+
+#+begin_src c
+  // Detect edges
+  void edges(int height, int width, RGBTRIPLE image[height][width]) {
+    const int GX_kernel[3][3] = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
+    const int GY_kernel[3][3] = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
+
+    RGBTRIPLE backup_img[height][width];
+    for (int h = 0; h < height; h++) {
+      for (int w = 0; w < width; w++) {
+        backup_img[h][w] = image[h][w];
+      }
+    }
+
+    for (int h = 0; h < height; h++) {
+      for (int w = 0; w < width; w++) {
+        RGBTRIPLE neighbours[NEIGHBOUR_ROW][NEIGHBOUR_COL];
+        get_edge_neighbours(h, w, height, width, neighbours, backup_img);
+
+        RGBTRIPLE curr_pixel = image[h][w];
+        int total_gx_red = 0, total_gx_blue = 0, total_gx_green = 0;
+        int total_gy_red = 0, total_gy_blue = 0, total_gy_green = 0;
+
+        for (int m = 0; m < NEIGHBOUR_ROW; m++) {
+          for (int n = 0; n < NEIGHBOUR_COL; n++) {
+            RGBTRIPLE pixel = neighbours[m][n];
+            total_gx_red += pixel.rgbtRed * GX_kernel[m][n];
+            total_gx_blue += pixel.rgbtBlue * GX_kernel[m][n];
+            total_gx_green += pixel.rgbtGreen * GX_kernel[m][n];
+
+            total_gy_red += pixel.rgbtRed * GY_kernel[m][n];
+            total_gy_blue += pixel.rgbtBlue * GY_kernel[m][n];
+            total_gy_green += pixel.rgbtGreen * GY_kernel[m][n];
+          }
+        }
+
+        curr_pixel.rgbtRed =
+            round_and_cap(sqrt(pow(total_gx_red, 2) + pow(total_gy_red, 2)));
+        curr_pixel.rgbtBlue =
+            round_and_cap(sqrt(pow(total_gx_blue, 2) + pow(total_gy_blue, 2)));
+        curr_pixel.rgbtGreen =
+            round_and_cap(sqrt(pow(total_gx_green, 2) + pow(total_gy_green, 2)));
+        image[h][w] = curr_pixel;
+      }
+    }
+    return;
+  }
+#+end_src
+
+** Round and cap 
+
+#+begin_src c
+  // takes in a double RGB value caps it at valid 0-255 int
+  int round_and_cap(double number) {
+    if (number > 255.0)
+      number = 255.0;
+
+    int result = round(number);
+    return result;
+  }
+#+end_src
+
+** Get available neighbours
+We take the dimenstion of the image grid, the co-ordinate points of pixel we are dealing with and finally the neighbours array to fill the valid pixels with.
+
+The neighbhours can be of any size so what we do is allocate a array with maximum possible size i.e 9. Then the compute and fill valid pixels in it then finally return the actual array size so that we can iterate until only the valid ones.
+
+                 |----+----+----+----+-----+-----+-----+-----+-----|
+                 | p1 | p2 | p3 | p4 | N/A | N/A | N/A | N/A | N/A |
+
+              Allocated size: 9  |  Filled size: 4  |  Neigbhours count: 4
+
+The MAX_H and MAX_W values given to us are based on natural index of 1 (unlike the values of height and width based at 0). So we have to subtract 1 from the MAX values to get array like index value.
+#+begin_src c
+  // Returns length of neighbours surrounding a pixel.
+  int get_neighbours(int height, int width, int MAX_H, int MAX_W,
+                     RGBTRIPLE neighbours[], RGBTRIPLE image[MAX_H][MAX_W]) {
+
+    int neighbours_count = 0;
+    // Since array start at 0 MAX_h will be 3 when maximum height is 2
+    const int h_bound = MAX_H - 1, w_bound = MAX_W - 1;
+
+    // up down case
+    if (height != 0) {
+      RGBTRIPLE up = image[height - 1][width];
+      neighbours[neighbours_count++] = up;
+    }
+    if (height != h_bound) {
+      RGBTRIPLE down = image[height + 1][width];
+      neighbours[neighbours_count++] = down;
+    }
+
+    // Left right case
+    if (width != 0) {
+      RGBTRIPLE left = image[height][width - 1];
+      neighbours[neighbours_count++] = left;
+    }
+    if (width != w_bound) {
+      RGBTRIPLE right = image[height][width + 1];
+      neighbours[neighbours_count++] = right;
+    }
+
+    // Diagnol case
+    if (height != 0 && width != 0) {
+      RGBTRIPLE ul = image[height - 1][width - 1];
+      neighbours[neighbours_count++] = ul;
+    }
+    if (height != 0 && width != w_bound) {
+      RGBTRIPLE ur = image[height - 1][width + 1];
+      neighbours[neighbours_count++] = ur;
+    }
+    if (height != h_bound && width != 0) {
+      RGBTRIPLE dl = image[height + 1][width - 1];
+      neighbours[neighbours_count++] = dl;
+    }
+    if (height != h_bound && width != w_bound) {
+      RGBTRIPLE dr = image[height + 1][width + 1];
+      neighbours[neighbours_count++] = dr;
+    }
+
+    neighbours[neighbours_count++] = image[height][width];
+    return neighbours_count;
+  }
+#+end_src
+
+** Get nine neighbours
+Similar to =get_neighbours= function, its job is to find and fill the neighbours array.
+The size of neighbours array to be filled is constant at 9 elements arranged in 3 row 3 col fashion. We initialize every neighbouring pixel variables with black pixel then if a valid neighbouring pixel exists use them instead of black pixels.
+
+#+begin_src c
+  void get_edge_neighbours(int height, int width, int MAX_H, int MAX_W,
+                           RGBTRIPLE neighbours[NEIGHBOUR_ROW][NEIGHBOUR_COL],
+                           RGBTRIPLE image[MAX_H][MAX_W]) {
+
+    // Since array start at 0 MAX_h will be 3 when maximum height is 2
+    const int h_bound = MAX_H - 1, w_bound = MAX_W - 1;
+    // Beyond egdes and conrners, consider black pixels
+    RGBTRIPLE black_pixel;
+    black_pixel.rgbtBlue = 0, black_pixel.rgbtGreen = 0, black_pixel.rgbtRed = 0;
+
+    RGBTRIPLE up = black_pixel, down = black_pixel, right = black_pixel,
+              left = black_pixel, ur = black_pixel, ul = black_pixel,
+              dl = black_pixel, dr = black_pixel;
+
+    if (height != 0 && width != 0)
+      ul = image[height - 1][width - 1];
+    if (height != 0)
+      up = image[height - 1][width];
+    if (height != 0 && width != w_bound)
+      ur = image[height - 1][width + 1];
+
+    neighbours[0][0] = ul;
+    neighbours[0][1] = up;
+    neighbours[0][2] = ur;
+
+    // Left right case
+    if (width != 0)
+      left = image[height][width - 1];
+    if (width != w_bound)
+      right = image[height][width + 1];
+
+    neighbours[1][0] = left;
+    neighbours[1][1] = image[height][width];
+    neighbours[1][2] = right;
+
+    if (height != h_bound && width != 0)
+      dl = image[height + 1][width - 1];
+    if (height != h_bound)
+      down = image[height + 1][width];
+    if (height != h_bound && width != w_bound)
+      dr = image[height + 1][width + 1];
+
+    neighbours[2][0] = dl;
+    neighbours[2][1] = down;
+    neighbours[2][2] = dr;
+  }
+#+end_src
+
+* Recover
+:Properties:
+:header-args: :tangle ~/dev/cs50_solutions/pset4/recover/recover.c
+:CUSTOM_ID: Recover
+:END:
+This problem deals with recovering jpegs file from raw data files.
+
+** Build and Usage
+#+begin_src sh :tangle no
+  $ make recover
+  $ ./recover card.raw
+#+end_src
+
+The card.raw file is packed with bytes information of varius image along with other random unused card bytes.
+Scanning the card byte by byte and printing it in a file gives a better understanding of what we are dealing with.
+
+** Exploration
+#+begin_src c :tangle no
+    BYTE sample;
+    while(fread(&sample, sizeof(BYTE), 1, file) == 1){
+      fprintf(debug_log_file, "%#x\n", sample);
+    }
+#+end_src
+The debug file is about 7 million lines. But observing from the first few patterns we detect that upto first 512 not single hex number can be found its all 0 (empty unfilled space) its only from the 3rd batch of 512 (i.e line: ~1024) that we see the 4 bytes jpeg demarkation.
+
+So we should not begin writing to our first image file until we get the 4 bytes demarkation.
+Also once we start writing to a file we wont stop appending to it until the start of next jpeg.
+(single image can span multiple 512 blocks otherwise all image would be same size)
+
+The expected model of the file would be something like this
+
+| 512 bytes | next 512 bytes  | next 512  | 512 bytes | next 512 bytes | last 512 bytes |
+|-----------+-----------------+-----------+-----------+----------------+----------------|
+| <empty-0> | <img1-continue> | <empty-0> | <img2>    | <empty-0's>    | <image-3>      |
+
+/Note that this is not the exact model of the card.raw file but just high level depiction of what we might expect./
+
+Here, img2 finishes in just 1 block of 512 bytes but we wont open next file until we hit the last byte. 
+
+Also some image wont even occupy the 512 bytes say a image only occupies 200 bytes and rest 312 are empty 0's. We will be writing the whole block anyway since we scan 512 bytes at a time.
+
+This is perfectly fine to write these extra empty 512 bytes to image2 according to the problem set description.
+
+** Headers
+We declare the unit block as 512 bytes since we will be scanning in batch of these bytes.
+Then for easiness sake we refer to the =uint8_t= from stdint as a BYTE.
+#+begin_src c 
+  #include <stdint.h>
+  #include <stdio.h>
+
+  #define BLOCK_SIZE 512
+
+  typedef uint8_t BYTE;
+
+  void get_next_filename(int file_count, char *filename);
+
+#+end_src
+
+** Regular file arguments parsing
+#+begin_src c 
+  int main(int argc, char *argv[]) {
+    if (argc != 2) {
+      fprintf(stderr, "Usage: ./recover file.raw\n");
+      return 1;
+    }
+    // Get the file command arg
+    char *file_arg = argv[1];
+
+    // prerpare the card raw file to open else just close and return
+    FILE *raw_file = fopen(file_arg, "r");
+    if (raw_file == NULL) {
+      fprintf(stderr, "Couldnot read file %s\n", file_arg);
+      return 1;
+    }
+  
+#+end_src
+
+** Scanning the file
+For keeping track of how many images we have written so that we can name the files we initillize a =file_count= variable.
+
+We maintain a =current_file= FILE pointer that points to current file we are editing.
+
+The fread function returns the number of bytes it read, here we ensure that we get the return value of =BLOCK_SIZE= otherwise we wont proceed.
+
+#+begin_src c
+  // --int-main-block--
+    // couner for keeping tarck of nu of files and help name them
+    int file_count = 0;
+    FILE *current_file = NULL;
+
+    // Instead of scanning each bytes we count in batch of 512
+    BYTE block[BLOCK_SIZE];
+
+    while (fread(block, sizeof(BYTE), BLOCK_SIZE, raw_file) == BLOCK_SIZE) {
+#+end_src
+** Detecting the jpeg demarkation
+The checking of first three bytes is simple but the last byte can range from 0xe0 to 0xef so we just have to check if the last byte begins with oxe this is simple to achieve if we compare this to decimal.
+
+Numbers like 70-79 simply resolve to 7 when divided by 10 (its base)
+This its logical for 0xe0-0xef to resolve to 0xe when divided by its base 16
+
+/NOTE: that 0x is just a prefix for our easiness to read that its hex number the actual numbers are e0-ef/
+
+Once we detect a start of jpeg we close our current file(if any) then prepare to write to new image file
+#+begin_src c
+  // --int-main-block--
+    // --while-block--
+      // last byte of 4 jpg byte ranges from 0xe0-0xef so we make sure it stats
+      // with 0xe
+      int jpeg_last = block[3] / 16 == 0xe;
+      
+      // check if we found a starting mark of jpeg
+      if (block[0] == 0xff && block[1] == 0xd8 && block[2] == 0xff && jpeg_last) {
+            // Abort writing to current file if there is one
+            if (current_file != NULL)
+                  fclose(current_file);
+#+end_src
+
+** Wriitng to new image files
+The filename is expected to be max 8 bytes with ###, .jpg and a null terminating byte.
+We generate the filename from =file_count= counter variable in another function(look at last block)
+
+We open the file, update the =current_file= FILE pointer and finally update the =file_count= counter.
+#+begin_src c
+  // --int-main-block--
+    // --while-block--
+      // --if-block--
+        // ### for filename and .jpg for ext and \0 --> total 8
+        char filename[8];
+
+        // Get the next filename
+        get_next_filename(file_count, filename);
+
+        // Open the next file
+        current_file = fopen(filename, "w");
+        if (current_file == NULL) {
+          fclose(raw_file);
+          fprintf(stderr, "Couldnot write to file %s\n", filename);
+          return 1;
+        }
+
+        file_count++;
+      }
+
+#+end_src
+** Continuosly appending
+if we did not detect any jpeg demarkation then we will continue writing the block of 512 bytes to current_file image.
+
+This is with the exception for the first few iteration where there will be no =current_file= since opening only happends on the jpeg detection if block.
+
+Similarly, though we also close the current file when detecting a jpeg, we still have to account for the last jpeg being written where we wont detect any jpeg since we reached end of file.
+#+begin_src c
+  // --int-main-block--
+    // --while-block--
+
+      // If we didnot encounter jpeg demarkation in this block just continue
+      // writing to current file
+      if (current_file != NULL) {
+        fwrite(block, sizeof(BYTE), BLOCK_SIZE, current_file);
+      }
+    }
+
+    // the current image output file wont close on the last block
+    fclose(current_file);
+    fclose(raw_file);
+    return 0;
+  }
+
+#+end_src
+** Naming the next image file
+We use the sprintf function to simply combine the exisinting file counter with prinf like formatting.
+
+Since we also accpet a pointer to a char array called filename we just write to this memory and do not have to return anything from function.
+#+begin_src c
+  void get_next_filename(int file_count, char *filename) {
+    if (file_count < 10)
+      sprintf(filename, "00%d.jpg", file_count);
+    else if (file_count < 100)
+      sprintf(filename, "0%d.jpg", file_count);
+    else
+      sprintf(filename, "%d.jpg", file_count);
+  }
+#+end_src

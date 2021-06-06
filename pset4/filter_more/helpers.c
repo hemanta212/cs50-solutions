@@ -1,6 +1,6 @@
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "helpers.h"
 
@@ -123,11 +123,10 @@ void edges(int height, int width, RGBTRIPLE image[height][width]) {
   return;
 }
 
+// takes in a double RGB value caps it at valid 0-255 int
 int round_and_cap(double number) {
   if (number > 255.0)
     number = 255.0;
-  else if (number < 0.0)
-    number = 0.0;
 
   int result = round(number);
   return result;
@@ -183,7 +182,6 @@ int get_neighbours(int height, int width, int MAX_H, int MAX_W,
   return neighbours_count;
 }
 
-// Returns length of neighbours surrounding a pixel.
 void get_edge_neighbours(int height, int width, int MAX_H, int MAX_W,
                          RGBTRIPLE neighbours[NEIGHBOUR_ROW][NEIGHBOUR_COL],
                          RGBTRIPLE image[MAX_H][MAX_W]) {
@@ -200,10 +198,8 @@ void get_edge_neighbours(int height, int width, int MAX_H, int MAX_W,
 
   if (height != 0 && width != 0)
     ul = image[height - 1][width - 1];
-
   if (height != 0)
     up = image[height - 1][width];
-
   if (height != 0 && width != w_bound)
     ur = image[height - 1][width + 1];
 
@@ -221,7 +217,6 @@ void get_edge_neighbours(int height, int width, int MAX_H, int MAX_W,
   neighbours[1][1] = image[height][width];
   neighbours[1][2] = right;
 
-  // Diagnol case
   if (height != h_bound && width != 0)
     dl = image[height + 1][width - 1];
   if (height != h_bound)

@@ -28,12 +28,12 @@ void sepia(int height, int width, RGBTRIPLE image[height][width]) {
   for (int h = 0; h < height; h++) {
     for (int w = 0; w < width; w++) {
       RGBTRIPLE pixel = image[h][w];
-      double sepiaRed =
-          0.393 * pixel.rgbtRed + 0.769 * pixel.rgbtGreen + 0.189 * pixel.rgbtBlue;
-      double sepiaGreen =
-          0.349 * pixel.rgbtRed + 0.686 * pixel.rgbtGreen + 0.168 * pixel.rgbtBlue;
-      double sepiaBlue =
-          0.272 * pixel.rgbtRed + 0.534 * pixel.rgbtGreen + 0.131 * pixel.rgbtBlue;
+      double sepiaRed = 0.393 * pixel.rgbtRed + 0.769 * pixel.rgbtGreen +
+                        0.189 * pixel.rgbtBlue;
+      double sepiaGreen = 0.349 * pixel.rgbtRed + 0.686 * pixel.rgbtGreen +
+                          0.168 * pixel.rgbtBlue;
+      double sepiaBlue = 0.272 * pixel.rgbtRed + 0.534 * pixel.rgbtGreen +
+                         0.131 * pixel.rgbtBlue;
 
       pixel.rgbtBlue = round_and_cap(sepiaBlue);
       pixel.rgbtGreen = round_and_cap(sepiaGreen);
