@@ -1,3 +1,4 @@
+#include <cs50.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,9 +6,9 @@
 // Max voters and candidates
 #define MAX_VOTERS 100
 #define MAX_CANDIDATES 9
-#define false 0
-#define true 1
-#define bool int
+/* #define false 0 */
+/* #define true 1 */
+/* #define bool int */
 
 // preferences[i][j] is jth preference for voter i
 int preferences[MAX_VOTERS][MAX_CANDIDATES];

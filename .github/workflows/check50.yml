@@ -1,0 +1,63 @@
+name: Check50
+
+on:
+  push:
+  pull_request:
+
+jobs:
+   check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+
+      - name: Setup check50
+        run: |
+          sudo apt-get install clang gcc
+          pip install check50
+          curl -s https://packagecloud.io/install/repositories/cs50/repo/script.deb.sh | sudo bash
+          sudo apt-get install libcs50
+
+      - name: Pset 4
+        run: |
+          cd lab4
+          check50 cs50/labs/2021/x/volume -l --log-level info
+
+          cd ../pset4/recover
+          check50 cs50/problems/2021/x/recover -l --log-level info
+
+          cd ../filter
+          check50 cs50/problems/2021/x/filter/less -l --log-level info
+
+          cd ../filter_more
+          check50 cs50/problems/2021/x/filter/more -l --log-level info
+
+      - name: Pset 3
+        run: |
+          cd pset3/
+          check50 cs50/problems/2021/x/runoff -l --log-level info
+          check50 cs50/problems/2021/x/tideman -l --log-level info
+          check50 cs50/problems/2021/x/plurality -l --log-level info
+
+      - name: Pset 2
+        run: |
+          cd pset2/
+          check50 cs50/problems/2021/x/readability -l --log-level info
+          check50 cs50/problems/2021/x/substitution -l --log-level info
+          check50 cs50/problems/2021/x/caesar -l --log-level info
+
+      - name: Pset 1
+        run: |
+          cd pset1/mario
+          check50 cs50/problems/2021/x/mario/less -l --log-level info
+
+          cd ../mario_more
+          check50 cs50/problems/2021/x/mario/more -l --log-level info
+
+          cd ../
+          check50 cs50/problems/2021/x/cash -l --log-level info
+          check50 cs50/problems/2021/x/credit -l --log-level info

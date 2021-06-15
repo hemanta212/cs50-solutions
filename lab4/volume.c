@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef uint16_t HEADERBYTE;
-typedef uint8_t BYTE;
+typedef uint8_t HEADERBYTE;
+typedef int16_t BYTE;
 
 int main(int argc, char *argv[]) {
   const int HEADER_SIZE = 44;
