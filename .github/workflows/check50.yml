@@ -25,6 +25,7 @@ jobs:
       - name: Pset 4
         run: |
           cd lab4
+          clang volume.c -o volume -Wall -lcs50 
           check50 cs50/labs/2021/x/volume -l --log-level info
 
           cd ../pset4/recover
