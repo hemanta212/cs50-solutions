@@ -1,16 +1,14 @@
+#include <cs50.h>
 #include <stdio.h>
 #include <string.h>
 
 // Max number of candidates
 #define MAX 9
-#define true 1
-#define false 0
-#define bool int
 
 // Candidates have name and vote count
 typedef struct
 {
-  char* name;
+  string name;
   int votes;
 }
 candidate;
@@ -22,10 +20,10 @@ candidate candidates[MAX];
 int candidate_count;
 
 // Function prototypes
-bool vote(char* name);
+bool vote(string name);
 void print_winner(void);
 
-int main(int argc, char* argv[])
+int main(int argc, string argv[])
 {
     // Check for invalid usage
     if (argc < 2)
@@ -71,7 +69,7 @@ int main(int argc, char* argv[])
 }
 
 // Update vote totals given a new vote
-bool vote(char* name)
+bool vote(string name)
 {
   for (int i =0; i < candidate_count; i++){
     if(strcmp(candidates[i].name, name) == 0){
@@ -95,8 +93,6 @@ void print_winner(void)
     if(candidates[i].votes == highest)
       puts(candidates[i].name);
    }
-
     return;
 }
-
 
