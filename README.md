@@ -23,11 +23,17 @@ This repository consists of my solutions to the cs50 problems of 2021.
   * [Runoff](/pset3/runoff.c)
   * [Tideman](/pset3/tideman.c)
 
+- [Lab 4](/lab4) 
+  * [volume](/lab4/volume.c)
+
 - [Problem Set 4](/pset4) 
   * Filter
     + less:  ([code](/pset4/filter/helpers.c),  [literate notes](/pset4/README.org#filter-less-and-more)
     + more:  ([code](/pset4/filter_more/helpers.c),  [literate notes](/pset4/README.org#filter-less-and-more))
   * Recover:  ([code](/pset4/recover/recover.c), [literate notes](/pset4/README.org#recover))
+
+- [Lab 5](/lab5) 
+  * [inheritance](/lab5/inheritance.c)
 
 - .... : WIP 
 
