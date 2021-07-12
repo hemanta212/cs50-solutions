@@ -10,11 +10,11 @@ We're building a hash table with index and the keys it points to.
 - Each of the index(key) points to a linked list.
 - The linked list itself is a list of custom struct called node
 
-        | Key | Value      |
-        | p1  | n1->n2->n3 |
-        | 0   | (null)     |
-        | 0   | (null)     |
-        | p2  | n1         |
+                | Key | Value      |
+                | p1  | n1->n2->n3 |
+                | 0   | (null)     |
+                | 0   | (null)     |
+                | p2  | n1         |
 
 - p1,p2 are the keys, the pointers to the linked list or first item of linked list.
 - n1, n2 are the nodes the members of linked list chained together
@@ -51,6 +51,10 @@ We basically do following things
   NULL points to NULL
 
 * Implementing a Simple hash table
+:PROPERTIES:
+:header-args: :tangle ~/dev/c-practice/csit/temp.c
+:END:
+
 Lets as an simple excersice implement a hash table. 
 The each key in our index array of table will just point to a node instead of a linked list.
 We'll not handle collision for this.
@@ -64,7 +68,7 @@ We import
 Similarly, we use some prime number for size of our array.
 
 Then the node struct we want to store, it just stores key value string pairs.
-#+begin_src C
+#+begin_src c
     #include <stdlib.h>
     #include <math.h>
     #include <string.h>
@@ -85,10 +89,10 @@ Then the node struct we want to store, it just stores key value string pairs.
 
  After we're done with the table, we just purge the memory allocated in the heap with a call to 'del_table'
  
- #+begin_src C
+ #+begin_src c
    void store(node** table, char* key, char* value);
    char* retrieve(node** table, char* key);
-   long hash(char* word);
+   int hash(char* word);
    void del_table(node** table);
  #+end_src
 
@@ -106,7 +110,7 @@ There are numerous implementation of hash functions, our is very very basic one.
 What we are doing is factoring each of the charectars in a word to generate a huge number so that even a single char change in a word will map to different huge number.
 
 Then we reduce the number acc to size of our array to get the index to place this word on.
-#+begin_src C
+#+begin_src c
   int hash(char* word){
     unsigned long long hash_value = 0;
     const double PRIME_SEED = 7.0;
@@ -129,7 +133,7 @@ Then we reduce the number acc to size of our array to get the index to place thi
 - if the key doesnot match, we have a collision! we just print it and do nothing to handle it.
   (collision because different key(word) passed to hash function yielded same index)
 
-  #+begin_src C
+  #+begin_src c
     void store(node** table, char* key, char* value){
       long index = hash(key);
       node* item = malloc(sizeof(node *));
@@ -156,7 +160,7 @@ For retrieving, we take a string key and the table to lookup on,
 - See if the key of table[index] node item matches the key, if yes return
 - if it didn't match it was the case of collision, we dont handle that here :)
 
-  #+begin_src C
+  #+begin_src c
     char* retrieve(node** table, char* key){
       long index = hash(key);
       if (table[index] != NULL){
@@ -167,13 +171,13 @@ For retrieving, we take a string key and the table to lookup on,
       return NULL;
     }
   #+end_src
-
+  
 ** Free the table
  Since we've used malloc and calloc calls to ask the compiler to allocate us some memory on heap we should return it with free.
 
  Since we are using malloc on each node we create and calloc only once creating the table, we just go through each node and free it and at last free the table.
 
-#+begin_src C
+#+begin_src c
   void del_table(node** table){
     for(int i=0; i<N; i++){
       if (table[i] == NULL)
@@ -184,6 +188,23 @@ For retrieving, we take a string key and the table to lookup on,
   }
 #+end_src
 
+** Main Function
+Lets use the above api 
+#+begin_src c
+  int main(void){
+    node **table= calloc(N, sizeof(node*));
+    store(table, "Hello", "World!");
+    char *word = retrieve(table, "Hello");
+    printf("%s\n",  word);
+
+    store(table, "Hi", "CS50");
+    word = retrieve(table, "Hi");
+    printf("%s\n",  word);
+    del_table(table);
+    return 0;
+  }
+
+#+end_src
 * CS50 Speller
 So we are ready for tackling the speller assignment
 ** Some More explorations
@@ -224,6 +245,100 @@ Lets try to read a the short version of dictionary file
     }
     puts("");
 
+    fclose(file);
     return 0;
+  }
+#+end_src
+
+*** Modularizing the dictionary similar to fread
+Lets actually build a more semantic fread that reads line by line
+I have named it read_word but thats just becuase the dictionary provided to use has one word per line.
+#+begin_src C
+  #include <stdio.h>
+
+  #define FILENAME "small"
+
+  int read_word(FILE *file, char word[]) ;
+
+  int main(void) {
+    FILE *file = fopen(FILENAME, "r");
+    if (file == NULL)
+      return 1;
+
+    char word[100];
+    while (1) {
+      if(read_word(file, word) != 1)
+        break;
+      printf("%s\n", word);
+    }
+
+    fclose(file);
+    return 0;
+  }
+
+
+  int read_word(FILE *file, char word[]) {
+    int word_len = 0;
+
+    // keep reading char by char to buf until fread returns 0
+    for (char buf; fread(&buf, sizeof(char), 1, file) == 1; word_len++) {
+      if (buf == '\n') {
+        // we've encounred end of line wrap up the word and print it
+        word[word_len] = '\0';
+        return 1;
+      } else {
+        word[word_len] = buf;
+      }
+    }
+    // for loop ended without hittng return 1 that means fread is exhaused file is finished
+    return 0;
+  }
+
+#+end_src
+
+*** Note: There are built-in functions for reading line by line!
+Since in our case one word is in one line, we can get C to read line by line to do our job but still above exercise is nice for other cases for defining a semantic function.
+
+The function is fgets (also getline is also available)
+- Using fgets
+#+begin_src C
+  #include <stdio.h>
+
+  int main(void) {
+    FILE *file = fopen("small", "r");
+    if (file == NULL)
+      return 1;
+
+    int word_len = 255;
+    char word[word_len];
+    while (fgets(word, word_len, file)) {
+      printf("%s", word);
+    }
+    fclose(file);
+    return 0;
+  }
+#+end_src
+
+- Using getline
+#+begin_src C
+  #include <stdio.h>
+
+  int main(void){
+      char *word = NULL;
+      size_t len = 0;
+      ssize_t read;
+
+      FILE *file = fopen("small", "r");
+      if (file == NULL)
+        return 1;
+
+      while ((read = getline(&word, &len, file)) != -1) {
+          printf("%s", word);
+      }
+
+      fclose(file);
+      if (word)
+        free(word);
+      return 0;
   }
 #+end_src

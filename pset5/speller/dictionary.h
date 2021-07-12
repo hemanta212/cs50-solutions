@@ -9,6 +9,9 @@
 /* (e.g., pneumonoultramicroscopicsilicovolcanoconiosis) */
 #define LENGTH 45
 
+// Initial array lenjk
+#define N 1
+
 // Prototypes
 bool check(const char *word);
 unsigned int hash(const char *word);

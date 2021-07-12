@@ -1,27 +1,30 @@
 
 # Table of Contents
 
-1.  [Model](#org27807f5)
-2.  [Some Explorations](#org9c3d12d)
-    1.  [0 points to what?](#orga50c5d2)
-    2.  [NULL points to what?](#org6270605)
-3.  [Implementing a Simple hash table](#org8d90345)
-    1.  [Headers](#orgae59858)
-    2.  [Hash table functions](#org424bd2a)
-    3.  [Hash function](#orgad0bf53)
-    4.  [Storing](#org2ace130)
-    5.  [Retrieving](#orgeff16ea)
-    6.  [Free the table](#orgef936d0)
-4.  [CS50 Speller](#org7c69209)
-    1.  [Some More explorations](#org61ad7ae)
-        1.  [Reading the dictionary file](#org5203066)
+1.  [Model](#org1f4bff8)
+2.  [Some Explorations](#orgc4e2539)
+    1.  [0 points to what?](#orgc2036d0)
+    2.  [NULL points to what?](#org8727d4c)
+3.  [Implementing a Simple hash table](#orge1897fe)
+    1.  [Headers](#org6dd1037)
+    2.  [Hash table functions](#org9f0b892)
+    3.  [Hash function](#orgbe6a826)
+    4.  [Storing](#orga4d1613)
+    5.  [Retrieving](#orgaa630d2)
+    6.  [Free the table](#orgbadf501)
+    7.  [Main Function](#orgec521f9)
+4.  [CS50 Speller](#org56cc061)
+    1.  [Some More explorations](#orgd7236cd)
+        1.  [Reading the dictionary file](#orgfa85aa8)
+        2.  [Modularizing the dictionary similar to fread](#orgc4be204)
+        3.  [Note: There are built-in functions for reading line by line!](#org160d3a2)
 
 Hash map implementation.
 
 Spin Off course worth looking: [jamesroutley/Write-A-Hash-Table](https://github.com/jamesroutley/write-a-hash-table)
 
 
-<a id="org27807f5"></a>
+<a id="org1f4bff8"></a>
 
 # Model
 
@@ -30,46 +33,46 @@ We're building a hash table with index and the keys it points to.
 -   The index are inbuilt arrays of pointers.
 -   Each of the index(key) points to a linked list.
 -   The linked list itself is a list of custom struct called node
-
-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
-
-
-<colgroup>
-<col  class="org-left" />
-
-<col  class="org-left" />
-</colgroup>
-<tbody>
-<tr>
-<td class="org-left">Key</td>
-<td class="org-left">Value</td>
-</tr>
-
-
-<tr>
-<td class="org-left">p1</td>
-<td class="org-left">n1-&gt;n2-&gt;n3</td>
-</tr>
-
-
-<tr>
-<td class="org-left">0</td>
-<td class="org-left">(null)</td>
-</tr>
-
-
-<tr>
-<td class="org-left">0</td>
-<td class="org-left">(null)</td>
-</tr>
-
-
-<tr>
-<td class="org-left">p2</td>
-<td class="org-left">n1</td>
-</tr>
-</tbody>
-</table>
+    
+    <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+    
+    
+    <colgroup>
+    <col  class="org-left" />
+    
+    <col  class="org-left" />
+    </colgroup>
+    <tbody>
+    <tr>
+    <td class="org-left">Key</td>
+    <td class="org-left">Value</td>
+    </tr>
+    
+    
+    <tr>
+    <td class="org-left">p1</td>
+    <td class="org-left">n1-&gt;n2-&gt;n3</td>
+    </tr>
+    
+    
+    <tr>
+    <td class="org-left">0</td>
+    <td class="org-left">(null)</td>
+    </tr>
+    
+    
+    <tr>
+    <td class="org-left">0</td>
+    <td class="org-left">(null)</td>
+    </tr>
+    
+    
+    <tr>
+    <td class="org-left">p2</td>
+    <td class="org-left">n1</td>
+    </tr>
+    </tbody>
+    </table>
 
 -   p1,p2 are the keys, the pointers to the linked list or first item of linked list.
 -   n1, n2 are the nodes the members of linked list chained together
@@ -82,12 +85,12 @@ We basically do following things
 -   For non-zero key we can be sure that it at least has a one item linked list so we append to the first poistion of list.
 
 
-<a id="org9c3d12d"></a>
+<a id="orgc4e2539"></a>
 
 # Some Explorations
 
 
-<a id="orga50c5d2"></a>
+<a id="orgc2036d0"></a>
 
 ## 0 points to what?
 
@@ -96,10 +99,12 @@ We basically do following things
         char* a = 0;
         printf("%s", a);
     
+        (null)
+    
     It gives (null)? honestly, this is my first time seeing this output.
 
 
-<a id="org6270605"></a>
+<a id="org8727d4c"></a>
 
 ## NULL points to what?
 
@@ -108,10 +113,12 @@ We basically do following things
         char* a = NULL;
         printf("%s", a);
     
+        (null)
+    
     NULL points to NULL
 
 
-<a id="org8d90345"></a>
+<a id="orge1897fe"></a>
 
 # Implementing a Simple hash table
 
@@ -120,7 +127,7 @@ The each key in our index array of table will just point to a node instead of a 
 We'll not handle collision for this.
 
 
-<a id="orgae59858"></a>
+<a id="org6dd1037"></a>
 
 ## Headers
 
@@ -146,7 +153,7 @@ Then the node struct we want to store, it just stores key value string pairs.
     } node;
 
 
-<a id="org424bd2a"></a>
+<a id="org9f0b892"></a>
 
 ## Hash table functions
 
@@ -159,11 +166,11 @@ After we're done with the table, we just purge the memory allocated in the heap 
 
     void store(node** table, char* key, char* value);
     char* retrieve(node** table, char* key);
-    long hash(char* word);
+    int hash(char* word);
     void del_table(node** table);
 
 
-<a id="orgad0bf53"></a>
+<a id="orgbe6a826"></a>
 
 ## Hash function
 
@@ -194,7 +201,7 @@ Then we reduce the number acc to size of our array to get the index to place thi
     }
 
 
-<a id="org2ace130"></a>
+<a id="orga4d1613"></a>
 
 ## Storing
 
@@ -225,7 +232,7 @@ Then we reduce the number acc to size of our array to get the index to place thi
         }
 
 
-<a id="orgeff16ea"></a>
+<a id="orgaa630d2"></a>
 
 ## Retrieving
 
@@ -247,7 +254,7 @@ For retrieving, we take a string key and the table to lookup on,
         }
 
 
-<a id="orgef936d0"></a>
+<a id="orgbadf501"></a>
 
 ## Free the table
 
@@ -265,19 +272,39 @@ Since we are using malloc on each node we create and calloc only once creating t
     }
 
 
-<a id="org7c69209"></a>
+<a id="orgec521f9"></a>
+
+## Main Function
+
+Lets use the above api 
+
+    int main(void){
+      node **table= calloc(N, sizeof(node*));
+      store(table, "Hello", "World!");
+      char *word = retrieve(table, "Hello");
+      printf("%s\n",  word);
+    
+      store(table, "Hi", "CS50");
+      word = retrieve(table, "Hi");
+      printf("%s\n",  word);
+      del_table(table);
+      return 0;
+    }
+
+
+<a id="org56cc061"></a>
 
 # CS50 Speller
 
 So we are ready for tackling the speller assignment
 
 
-<a id="org61ad7ae"></a>
+<a id="orgd7236cd"></a>
 
 ## Some More explorations
 
 
-<a id="org5203066"></a>
+<a id="orgfa85aa8"></a>
 
 ### Reading the dictionary file
 
@@ -316,6 +343,105 @@ Lets try to read a the short version of dictionary file
       }
       puts("");
     
+      fclose(file);
       return 0;
+    }
+
+
+<a id="orgc4be204"></a>
+
+### Modularizing the dictionary similar to fread
+
+Lets actually build a more semantic fread that reads line by line
+I have named it read<sub>word</sub> but thats just becuase the dictionary provided to use has one word per line.
+
+    #include <stdio.h>
+    
+    #define FILENAME "small"
+    
+    int read_word(FILE *file, char word[]) ;
+    
+    int main(void) {
+      FILE *file = fopen(FILENAME, "r");
+      if (file == NULL)
+        return 1;
+    
+      char word[100];
+      while (1) {
+        if(read_word(file, word) != 1)
+          break;
+        printf("%s\n", word);
+      }
+    
+      fclose(file);
+      return 0;
+    }
+    
+    
+    int read_word(FILE *file, char word[]) {
+      int word_len = 0;
+    
+      // keep reading char by char to buf until fread returns 0
+      for (char buf; fread(&buf, sizeof(char), 1, file) == 1; word_len++) {
+        if (buf == '\n') {
+          // we've encounred end of line wrap up the word and print it
+          word[word_len] = '\0';
+          return 1;
+        } else {
+          word[word_len] = buf;
+        }
+      }
+      // for loop ended without hittng return 1 that means fread is exhaused file is finished
+      return 0;
+    }
+
+
+<a id="org160d3a2"></a>
+
+### Note: There are built-in functions for reading line by line!
+
+Since in our case one word is in one line, we can get C to read line by line to do our job but still above exercise is nice for other cases for defining a semantic function.
+
+The function is fgets (also getline is also available)
+
+-   Using fgets
+
+    #include <stdio.h>
+    
+    int main(void) {
+      FILE *file = fopen("small", "r");
+      if (file == NULL)
+        return 1;
+    
+      int word_len = 255;
+      char word[word_len];
+      while (fgets(word, word_len, file)) {
+        printf("%s", word);
+      }
+      fclose(file);
+      return 0;
+    }
+
+-   Using getline
+
+    #include <stdio.h>
+    
+    int main(void){
+        char *word = NULL;
+        size_t len = 0;
+        ssize_t read;
+    
+        FILE *file = fopen("small", "r");
+        if (file == NULL)
+          return 1;
+    
+        while ((read = getline(&word, &len, file)) != -1) {
+    	printf("%s", word);
+        }
+    
+        fclose(file);
+        if (word)
+          free(word);
+        return 0;
     }
 
